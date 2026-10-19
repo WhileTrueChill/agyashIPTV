@@ -52,7 +52,7 @@ jobs:
 
       - name: Build installable release APK (bundles JavaScript)
         env:
-          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL || inputs.xtream_base_url }}
+          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
         run: cd android && ./gradlew assembleRelease
 
       - name: Stage Android APK
