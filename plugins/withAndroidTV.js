@@ -15,6 +15,9 @@ function withAndroidTV(config) {
     manifest["uses-feature"] = features;
 
     const application = manifest.application?.[0];
+    if (application) {
+      application.$ = { ...(application.$ || {}), "android:usesCleartextTraffic": "true" };
+    }
     const activities = application?.activity || [];
     const mainActivity = activities.find((activity) =>
       String(activity.$?.["android:name"] || "").includes("MainActivity")
