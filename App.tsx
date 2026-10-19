@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
+  ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, Pressable,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
   useWindowDimensions,
 } from "react-native";
@@ -109,7 +109,7 @@ function MediaCard({ item, kind, onPress, saved, onToggleSaved }: {
   return (
     <View style={styles.card}>
       <Pressable onPress={onPress} style={({ pressed }) => [styles.poster, pressed && styles.pressed]} accessibilityRole="button">
-        {image ? <View style={styles.posterImageArea}><Text style={styles.posterFallback}>{initial}</Text></View> : <View style={styles.posterFallbackArea}><Text style={styles.posterFallback}>{initial}</Text></View>}
+        {image ? <View style={styles.posterImageArea}><Image source={{ uri: image }} style={styles.posterImage} resizeMode="cover" onError={() => {}}/><Text style={styles.posterFallback}>{initial}</Text></View> : <View style={styles.posterFallbackArea}><Text style={styles.posterFallback}>{initial}</Text></View>}
         <View style={styles.posterOverlay}><Text style={styles.playGlyph}>▶</Text></View>
         <View style={styles.kindPill}><Text style={styles.kindText}>{kind === "live" ? "LIVE" : kind === "movie" ? "MOVIE" : "SERIES"}</Text></View>
       </Pressable>
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   loginTitle: { color: "#F8F8FC", fontSize: 32, lineHeight: 40, fontWeight: "800", marginTop: 10 },
   loginSubtitle: { color: "#A0A0B0", fontSize: 13, lineHeight: 20, marginTop: 7, marginBottom: 25 },
   fieldLabel: { color: "#D9D8E6", fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 8, marginTop: 8 },
-  input: { height: 49, borderRadius: 12, borderWidth: 1, borderColor: "#343543", backgroundColor: "#0C0D13", color: "#FFFFFF", paddingHorizontal: 14, fontSize: 14, outlineStyle: "none" as any },
+  input: { height: 49, borderRadius: 12, borderWidth: 1, borderColor: "#343543", backgroundColor: "#0C0D13", color: "#FFFFFF", paddingHorizontal: 14, fontSize: 14 },
   rememberRow: { flexDirection: "row", alignItems: "center", marginTop: 17, gap: 9 },
   checkbox: { width: 17, height: 17, borderWidth: 1, borderRadius: 5, borderColor: "#69697C", alignItems: "center", justifyContent: "center" },
   checkboxChecked: { backgroundColor: "#A99BFF", borderColor: "#A99BFF" },
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   gridItem: { paddingHorizontal: 7, marginBottom: 22 },
   card: { minWidth: 0 },
   poster: { width: "100%", aspectRatio: 0.72, borderRadius: 13, backgroundColor: "#1C1D28", overflow: "hidden", position: "relative", borderWidth: 1, borderColor: "#2B2C39", justifyContent: "center", alignItems: "center" },
-  posterImageArea: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#252138" },
+  posterImageArea: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#252138" },\n  posterImage: { position: "absolute", width: "100%", height: "100%" },
   posterFallbackArea: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#252138" },
   posterFallback: { fontSize: 55, color: "#8A7AD0", fontWeight: "900", opacity: 0.7 },
   posterOverlay: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "#08090D22", alignItems: "center", justifyContent: "center" },
