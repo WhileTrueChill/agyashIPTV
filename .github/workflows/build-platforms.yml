@@ -1,0 +1,105 @@
+name: Build AGYASHtv Android APK and PC web app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "App.tsx"
+      - "app.json"
+      - "package.json"
+      - "tsconfig.json"
+      - "plugins/**"
+      - "api/**"
+      - ".github/workflows/build-platforms.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android release APK and web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify hidden provider endpoint
+        shell: bash
+        run: |
+          if [ -z "$EXPO_PUBLIC_XTREAM_BASE_URL" ]; then
+            echo "::error::Set repository secret XTREAM_BASE_URL to the authorized IPTV provider base address. It is not shown on the login screen."
+            exit 1
+          fi
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build installable release APK (bundles JavaScript)
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Stage Android APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk AGYASHtv.apk
+
+      - name: Export PC web build
+        run: npm run build:web
+
+      - name: Package PC web build
+        run: cd dist && zip -qr ../AGYASHtv-PC-Web.zip .
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGYASHtv-Android-APK
+          path: AGYASHtv.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload PC web package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGYASHtv-PC-Web
+          path: AGYASHtv-PC-Web.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish latest downloads
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: AGYASHtv Latest Build
+          body: |
+            AGYASHtv beta build for Android mobile, compatible Android TV devices, and PC web.
+            Sign in with an authorized IPTV username and password. The provider server is configured by the app operator and is not a login field.
+            - AGYASHtv.apk: Android release APK with JavaScript bundled
+            - AGYASHtv-PC-Web.zip: browser version for local/self hosting
+          prerelease: true
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            AGYASHtv.apk
+            AGYASHtv-PC-Web.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
