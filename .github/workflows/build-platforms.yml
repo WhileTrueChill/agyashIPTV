@@ -2,29 +2,12 @@ name: Build AGYASHtv Android APK and PC web app
 
 on:
   workflow_dispatch:
-    inputs:
-      xtream_base_url:
-        description: "Base URL of your authorized IPTV provider (example format: https://provider.example:8080)"
-        required: false
-        type: string
-  push:
-    branches: [main]
-    paths:
-      - "App.tsx"
-      - "app.json"
-      - "package.json"
-      - "tsconfig.json"
-      - "plugins/**"
-      - "api/**"
-      - ".github/workflows/build-platforms.yml"
 
 permissions:
   contents: write
 
 jobs:
   build:
-    # Push builds require the stored secret. Manual builds can supply the URL via the dispatch input.
-    if: ${{ github.event_name != 'push' || secrets.XTREAM_BASE_URL != '' }}
     name: Build Android release APK and web app
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -57,10 +40,10 @@ jobs:
       - name: Verify hidden provider endpoint
         shell: bash
         env:
-          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL || inputs.xtream_base_url }}
+          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
         run: |
           if [ -z "$EXPO_PUBLIC_XTREAM_BASE_URL" ]; then
-            echo "::error::Run this workflow manually and enter the provider base URL, or set the XTREAM_BASE_URL repository secret. A username/password alone cannot identify an IPTV server."
+            echo "::error::Set the private GitHub Actions secret XTREAM_BASE_URL to the authorized provider base address before running this workflow."
             exit 1
           fi
 
