@@ -109,7 +109,7 @@ function MediaCard({ item, kind, onPress, saved, onToggleSaved }: {
   return (
     <View style={styles.card}>
       <Pressable onPress={onPress} style={({ pressed }) => [styles.poster, pressed && styles.pressed]} accessibilityRole="button">
-        {image ? <View style={styles.posterImageArea}><Image source={{ uri: image }} style={styles.posterImage} resizeMode="cover" onError={() => {}}/><Text style={styles.posterFallback}>{initial}</Text></View> : <View style={styles.posterFallbackArea}><Text style={styles.posterFallback}>{initial}</Text></View>}
+        {image ? <View style={styles.posterImageArea}><Image source={{ uri: image }} style={styles.posterImage} resizeMode="cover" onError={() => {}} /></View> : <View style={styles.posterFallbackArea}><Text style={styles.posterFallback}>{initial}</Text></View>}
         <View style={styles.posterOverlay}><Text style={styles.playGlyph}>▶</Text></View>
         <View style={styles.kindPill}><Text style={styles.kindText}>{kind === "live" ? "LIVE" : kind === "movie" ? "MOVIE" : "SERIES"}</Text></View>
       </Pressable>
@@ -322,7 +322,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  appShell: { flex: 1, backgroundColor: "#08090D", color: "#F8F8FC" },
+  appShell: { flex: 1, backgroundColor: "#08090D" },
   loginRoot: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, overflow: "hidden", minHeight: "100%" },
   loginGlow: { position: "absolute", width: 520, height: 520, borderRadius: 260, backgroundColor: "#211B4B", opacity: 0.65, top: -190, right: -170 },
   logoWrap: { flexDirection: "row", alignItems: "center", gap: 10 },
