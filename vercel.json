@@ -1,5 +1,10 @@
 {
   "installCommand": "npm install",
   "buildCommand": "npm run build:web",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/xtream.js": {
+      "maxDuration": 300
+    }
+  }
 }
