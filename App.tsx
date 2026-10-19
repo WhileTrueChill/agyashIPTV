@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   sectionSub: { color: "#858697", fontSize: 11, marginTop: 5 },
   searchBox: { width: 250, maxWidth: "48%", height: 41, borderRadius: 10, borderWidth: 1, borderColor: "#2F303D", backgroundColor: "#12131A", paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   searchIcon: { color: "#9696A8", fontSize: 22 },
-  searchInput: { color: "#F5F5FC", flex: 1, fontSize: 12, outlineStyle: "none" as any },
+  searchInput: { color: "#F5F5FC", flex: 1, fontSize: 12 },
   clearSearch: { color: "#A4A4B5", fontSize: 21, paddingHorizontal: 4 },
   categoryRow: { gap: 8, paddingBottom: 20 },
   categoryChip: { backgroundColor: "#14151D", borderRadius: 9, borderWidth: 1, borderColor: "#292A37", paddingHorizontal: 13, paddingVertical: 9 },
