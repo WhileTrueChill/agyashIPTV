@@ -92,7 +92,7 @@ function VideoPlayerModal({ uri, title, onClose }: { uri: string; title: string;
         <Text style={styles.playerTitle} numberOfLines={1}>{title}</Text>
         <Pressable onPress={onClose} style={styles.closeButton} accessibilityLabel="Close player"><Text style={styles.closeText}>✕</Text></Pressable>
       </View>
-      <VideoView player={player} style={styles.video} nativeControls contentFit="contain" allowsFullscreen allowsPictureInPicture />
+      <VideoView player={player} style={styles.video} nativeControls contentFit="contain" />
     </View>
   );
 }
