@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, Pressable,
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import { VideoView, useVideoPlayer } from "expo-video";
+import { VideoView, useVideoPlayer } from "expo-video";\nimport Hls from "hls.js";
 
 type MediaKind = "live" | "movie" | "series";
 type Category = { category_id: string | number; category_name: string };
@@ -76,7 +76,7 @@ function apiRequest<T>(username: string, password: string, action?: string, extr
 
 function streamUrl(kind: MediaKind, item: MediaItem | Episode, username: string, password: string): string {
   const id = String(kind === "series" ? (item.id ?? item.stream_id ?? "") : (item.stream_id ?? item.id ?? ""));
-  const extension = String(item.container_extension || (kind === "live" ? "ts" : "mp4")).replace(/[^a-zA-Z0-9]/g, "") || "mp4";
+  const extension = String(item.container_extension || (kind === "live" ? (Platform.OS === "web" ? "m3u8" : "ts") : "mp4")).replace(/[^a-zA-Z0-9]/g, "") || "mp4";
   if (Platform.OS === "web") {
     const query = new URLSearchParams({ mode: "stream", kind, username, password, id, ext: extension });
     return `/api/xtream?${query.toString()}`;
@@ -84,7 +84,7 @@ function streamUrl(kind: MediaKind, item: MediaItem | Episode, username: string,
   return `${PROVIDER_BASE}/${kind === "movie" ? "movie" : kind === "series" ? "series" : "live"}/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${encodeURIComponent(id)}.${extension}`;
 }
 
-function VideoPlayerModal({ uri, title, onClose }: { uri: string; title: string; onClose: () => void }) {
+function NativeVideoPlayerModal({ uri, title, onClose }: { uri: string; title: string; onClose: () => void }) {
   const player = useVideoPlayer(uri, (instance) => { instance.play(); });
   return (
     <View style={styles.playerBackdrop}>
@@ -95,6 +95,44 @@ function VideoPlayerModal({ uri, title, onClose }: { uri: string; title: string;
       <VideoView player={player} style={styles.video} nativeControls contentFit="contain" />
     </View>
   );
+}
+
+function WebVideoPlayerModal({ uri, title, onClose }: { uri: string; title: string; onClose: () => void }) {
+  const videoRef = useRef<any>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let hls: Hls | null = null;
+    const isHls = uri.toLowerCase().includes(".m3u8") || uri.includes("ext=m3u8");
+    if (isHls && Hls.isSupported()) {
+      hls = new Hls({ enableWorker: true });
+      hls.loadSource(uri);
+      hls.attachMedia(video);
+    } else {
+      video.src = uri;
+    }
+    const play = video.play?.();
+    if (play && typeof play.catch === "function") play.catch(() => {});
+    return () => { hls?.destroy(); video.pause?.(); video.removeAttribute?.("src"); };
+  }, [uri]);
+  return (
+    <View style={styles.playerBackdrop}>
+      <View style={styles.playerHeader}>
+        <Text style={styles.playerTitle} numberOfLines={1}>{title}</Text>
+        <Pressable onPress={onClose} style={styles.closeButton} accessibilityLabel="Close player"><Text style={styles.closeText}>✕</Text></Pressable>
+      </View>
+      {React.createElement("video" as any, {
+        ref: videoRef, controls: true, autoPlay: true, playsInline: true,
+        style: { width: "100%", height: "calc(100% - 62px)", marginTop: 12, borderRadius: 10, backgroundColor: "#000" }
+      })}
+    </View>
+  );
+}
+
+function VideoPlayerModal(props: { uri: string; title: string; onClose: () => void }) {
+  return Platform.OS === "web"
+    ? <WebVideoPlayerModal {...props} />
+    : <NativeVideoPlayerModal {...props} />;
 }
 
 function Logo() {
