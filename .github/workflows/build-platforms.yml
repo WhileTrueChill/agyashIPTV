@@ -2,6 +2,11 @@ name: Build AGYASHtv Android APK and PC web app
 
 on:
   workflow_dispatch:
+    inputs:
+      xtream_base_url:
+        description: "Base URL of your authorized IPTV provider (example format: https://provider.example:8080)"
+        required: false
+        type: string
   push:
     branches: [main]
     paths:
@@ -18,6 +23,8 @@ permissions:
 
 jobs:
   build:
+    # Push builds require the stored secret. Manual builds can supply the URL via the dispatch input.
+    if: ${{ github.event_name != 'push' || secrets.XTREAM_BASE_URL != '' }}
     name: Build Android release APK and web app
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -50,10 +57,10 @@ jobs:
       - name: Verify hidden provider endpoint
         shell: bash
         env:
-          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
+          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL || inputs.xtream_base_url }}
         run: |
           if [ -z "$EXPO_PUBLIC_XTREAM_BASE_URL" ]; then
-            echo "::error::Set repository secret XTREAM_BASE_URL to the authorized IPTV provider base address. It is not shown on the login screen."
+            echo "::error::Run this workflow manually and enter the provider base URL, or set the XTREAM_BASE_URL repository secret. A username/password alone cannot identify an IPTV server."
             exit 1
           fi
 
@@ -62,7 +69,7 @@ jobs:
 
       - name: Build installable release APK (bundles JavaScript)
         env:
-          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
+          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL || inputs.xtream_base_url }}
         run: cd android && ./gradlew assembleRelease
 
       - name: Stage Android APK
