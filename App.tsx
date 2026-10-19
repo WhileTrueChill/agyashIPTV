@@ -6,7 +6,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import { VideoView, useVideoPlayer } from "expo-video";\nimport Hls from "hls.js";
+import { VideoView, useVideoPlayer } from "expo-video";
+import Hls from "hls.js";
 
 type MediaKind = "live" | "movie" | "series";
 type Category = { category_id: string | number; category_name: string };
