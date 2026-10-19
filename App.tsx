@@ -7,7 +7,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { VideoView, useVideoPlayer } from "expo-video";
-import Hls from "hls.js";
 
 type MediaKind = "live" | "movie" | "series";
 type Category = { category_id: string | number; category_name: string };
@@ -103,12 +102,18 @@ function WebVideoPlayerModal({ uri, title, onClose }: { uri: string; title: stri
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    let hls: Hls | null = null;
+    let hls: any = null;
     const isHls = uri.toLowerCase().includes(".m3u8") || uri.includes("ext=m3u8");
-    if (isHls && Hls.isSupported()) {
-      hls = new Hls({ enableWorker: true });
-      hls.loadSource(uri);
-      hls.attachMedia(video);
+    if (isHls) {
+      const hlsModule = require("hls.js");
+      const HlsConstructor = hlsModule.default || hlsModule;
+      if (HlsConstructor.isSupported()) {
+        hls = new HlsConstructor({ enableWorker: true });
+        hls.loadSource(uri);
+        hls.attachMedia(video);
+      } else {
+        video.src = uri;
+      }
     } else {
       video.src = uri;
     }
