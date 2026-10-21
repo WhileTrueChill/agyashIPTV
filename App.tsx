@@ -195,7 +195,7 @@ export default function App() {
   const columns = width >= 1400 ? 6 : width >= 1050 ? 5 : width >= 760 ? 4 : width >= 520 ? 3 : 2;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [busy, setBusy] = useState(false);
