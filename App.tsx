@@ -102,7 +102,7 @@ function streamUrl(kind: MediaKind, item: MediaItem | Episode, username: string,
   const id = String(kind === "series" ? (item.id ?? item.stream_id ?? "") : (item.stream_id ?? item.id ?? ""));
   const extension = String(item.container_extension || (kind === "live" ? (Platform.OS === "web" ? "m3u8" : "ts") : "mp4")).replace(/[^a-zA-Z0-9]/g, "") || "mp4";
   if (Platform.OS === "web") {
-    const query = new URLSearchParams({ mode: "stream", kind, username, password, id, ext: extension });
+    const query = new URLSearchParams({ mode: "stream", kind, id, ext: extension });
     return `/api/xtream?${query.toString()}`;
   }
   return `${resolvedProviderBase}/${kind === "movie" ? "movie" : kind === "series" ? "series" : "live"}/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${encodeURIComponent(id)}.${extension}`;
@@ -273,6 +273,15 @@ export default function App() {
   };
 
   const logout = async () => {
+    if (Platform.OS === "web") {
+      try {
+        await fetch("/api/xtream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logout: true }),
+        });
+      } catch { /* Local sign-out still proceeds if the server is unreachable. */ }
+    }
     setSignedIn(false); setUserInfo(null); setLive([]); setMovies([]); setSeries([]);
     setSearch(""); setError(""); setAccountOpen(false); setEpisodePicker(null); setPlaying(null);
     await storageRemove(CREDENTIAL_KEY);
