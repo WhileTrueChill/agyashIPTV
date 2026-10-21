@@ -13,6 +13,7 @@
       "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
+      "@react-native-tvos/config-tv",
       "expo-video",
       "./plugins/withAndroidTV"
     ],
