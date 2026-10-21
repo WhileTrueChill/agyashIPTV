@@ -27,7 +27,34 @@ type MediaItem = {
 type Episode = MediaItem & { id: number | string; episode_num?: number; season?: number; container_extension?: string };
 type UserInfo = { auth?: number | string; status?: string; exp_date?: string; username?: string; max_connections?: string | number };
 
-const PROVIDER_BASE = (process.env.EXPO_PUBLIC_XTREAM_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = (process.env.EXPO_PUBLIC_API_ORIGIN || "https://agyas-htv.vercel.app").trim().replace(/\/+$/, "");
+let resolvedProviderBase = "";
+let providerBasePromise: Promise<string> | null = null;
+
+async function getProviderBase(): Promise<string> {
+  if (resolvedProviderBase) return resolvedProviderBase;
+  if (!providerBasePromise) {
+    providerBasePromise = (async () => {
+      const response = await fetch(`${API_ORIGIN}/api/config`, { headers: { Accept: "application/json" } });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || typeof json?.providerBase !== "string") {
+        throw new Error(json?.error || "AGYASHtv server is not configured. Please contact support.");
+      }
+      let parsed: URL;
+      try { parsed = new URL(json.providerBase); }
+      catch { throw new Error("AGYASHtv server returned an invalid provider address."); }
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("AGYASHtv server returned an unsupported provider address.");
+      }
+      resolvedProviderBase = parsed.toString().replace(/\/+$/, "");
+      return resolvedProviderBase;
+    })().catch((error) => {
+      providerBasePromise = null;
+      throw error;
+    });
+  }
+  return providerBasePromise;
+}
 const CREDENTIAL_KEY = "agyashtv.savedCredentials";
 const FAVORITES_KEY = "agyashtv.myList";
 const NAV_ITEMS: { key: "live" | "movie" | "series" | "mylist"; label: string; icon: string }[] = [
@@ -49,29 +76,26 @@ async function storageRemove(key: string): Promise<void> {
   return SecureStore.deleteItemAsync(key);
 }
 
-function apiRequest<T>(username: string, password: string, action?: string, extra: Record<string, string | number> = {}): Promise<T> {
+async function apiRequest<T>(username: string, password: string, action?: string, extra: Record<string, string | number> = {}): Promise<T> {
   const params = { ...extra };
   if (Platform.OS === "web") {
-    return fetch("/api/xtream", {
+    const response = await fetch("/api/xtream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, action, params }),
-    }).then(async (response) => {
-      const json = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(json?.error || "Unable to connect to your IPTV provider.");
-      return json as T;
     });
+    const json = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(json?.error || "Unable to connect to your IPTV provider.");
+    return json as T;
   }
-  if (!PROVIDER_BASE) {
-    return Promise.reject(new Error("This AGYASHtv build is not configured yet. Please contact the app provider."));
-  }
+
+  const base = await getProviderBase();
   const query = new URLSearchParams({ username, password, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
   if (action) query.set("action", action);
-  return fetch(`${PROVIDER_BASE}/player_api.php?${query.toString()}`).then(async (response) => {
-    const json = await response.json().catch(() => null);
-    if (!response.ok) throw new Error("Unable to connect to your IPTV provider.");
-    return json as T;
-  });
+  const response = await fetch(`${base}/player_api.php?${query.toString()}`);
+  const json = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("Unable to connect to your IPTV provider.");
+  return json as T;
 }
 
 function streamUrl(kind: MediaKind, item: MediaItem | Episode, username: string, password: string): string {
@@ -81,7 +105,7 @@ function streamUrl(kind: MediaKind, item: MediaItem | Episode, username: string,
     const query = new URLSearchParams({ mode: "stream", kind, username, password, id, ext: extension });
     return `/api/xtream?${query.toString()}`;
   }
-  return `${PROVIDER_BASE}/${kind === "movie" ? "movie" : kind === "series" ? "series" : "live"}/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${encodeURIComponent(id)}.${extension}`;
+  return `${resolvedProviderBase}/${kind === "movie" ? "movie" : kind === "series" ? "series" : "live"}/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${encodeURIComponent(id)}.${extension}`;
 }
 
 function NativeVideoPlayerModal({ uri, title, onClose }: { uri: string; title: string; onClose: () => void }) {
@@ -227,10 +251,6 @@ export default function App() {
     const user = username.trim();
     const pass = password;
     if (!user || !pass) { setError("Enter your username and password."); return; }
-    if (Platform.OS !== "web" && !PROVIDER_BASE) {
-      setError("This build is not connected to a provider yet. The provider address must be configured by AGYASHtv once; you do not need to enter a URL here.");
-      return;
-    }
     setBusy(true);
     try {
       const result = await apiRequest<{ user_info?: UserInfo }>(user, pass);
