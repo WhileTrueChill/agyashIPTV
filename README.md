@@ -10,12 +10,13 @@ Users enter only their IPTV username and password. There is no provider URL fiel
 
 1. Open your Vercel project for AGYASHtv and go to **Settings → Environment Variables**.
 2. Add `XTREAM_BASE_URL` with the base address supplied by your authorized IPTV provider. Example format only: `https://provider.example:8080`. Do not include `player_api.php`, customer credentials, or a playlist path.
-3. Make the variable available to Production (and Preview if needed), then redeploy Vercel.
-4. Confirm the Vercel domain used by native apps is `https://agyas-htv.vercel.app`. If your production domain is different, set the GitHub Actions repository variable `AGYASHTV_API_ORIGIN` to that domain under **Settings → Secrets and variables → Actions → Variables**.
-5. If your provider redirects media to a separate CDN hostname, add those hostnames as a comma-separated `XTREAM_ALLOWED_STREAM_HOSTS` Vercel environment variable, then redeploy. Leave it unset when streams stay on the provider host.
-6. Run GitHub Actions → **Build AGYASHtv Android APK and PC web app**.
+3. Add `XTREAM_SESSION_SECRET` with a random secret of at least 32 bytes. You can generate one in a local terminal with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Keep it in Vercel only; never commit it.
+4. Make both variables available to Production (and Preview if needed), then redeploy Vercel.
+5. Confirm the Vercel domain used by native apps is `https://agyas-htv.vercel.app`. If your production domain is different, set the GitHub Actions repository variable `AGYASHTV_API_ORIGIN` to that domain under **Settings → Secrets and variables → Actions → Variables**.
+6. If your provider redirects media to a separate CDN hostname, add those hostnames as a comma-separated `XTREAM_ALLOWED_STREAM_HOSTS` Vercel environment variable, then redeploy. Leave it unset when streams stay on the provider host.
+7. Run GitHub Actions → **Build AGYASHtv Android APK and PC web app**.
 
-The Vercel config endpoint returns the provider base address to native clients at runtime. The base address is not a password and can be inspected by a technically capable user; this architecture avoids duplicating the configuration in GitHub secrets and APK builds. Do not embed an IPTV customer's username/password in source code, environment variables, or releases.
+The Vercel config endpoint returns the provider base address to native clients at runtime. The base address is not a password and can be inspected by a technically capable user; this architecture avoids duplicating the configuration in GitHub secrets and APK builds. Browser playback uses an encrypted, short-lived, HttpOnly session cookie and encrypted HLS target tokens so raw credentials are not placed in media URLs. Do not embed an IPTV customer's username/password or the session secret in source code, environment variables used at build time, or releases.
 
 ## Builds
 
