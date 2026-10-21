@@ -132,7 +132,10 @@ function WebVideoPlayerModal({ uri, title, onClose }: { uri: string; title: stri
       const hlsModule = require("hls.js");
       const HlsConstructor = hlsModule.default || hlsModule;
       if (HlsConstructor.isSupported()) {
-        hls = new HlsConstructor({ enableWorker: true });
+        hls = new HlsConstructor({
+        enableWorker: true,
+        xhrSetup: (xhr: XMLHttpRequest) => { xhr.withCredentials = true; },
+      });
         hls.loadSource(uri);
         hls.attachMedia(video);
       } else {
@@ -277,6 +280,7 @@ export default function App() {
       try {
         await fetch("/api/xtream", {
           method: "POST",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ logout: true }),
         });
