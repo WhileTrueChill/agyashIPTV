@@ -1,4 +1,5 @@
 const { Readable } = require("node:stream");
+const crypto = require("node:crypto");
 
 const ALLOWED_ACTIONS = new Set([
   "get_live_categories",
@@ -11,6 +12,82 @@ const ALLOWED_ACTIONS = new Set([
 ]);
 const ALLOWED_KINDS = new Set(["live", "movie", "series"]);
 const ALLOWED_EXTENSIONS = new Set(["ts", "m3u8", "mp4", "mkv", "avi", "mov", "mpg", "mpeg"]);
+const SESSION_COOKIE = "agyashtv_session";
+const SESSION_TTL_SECONDS = 4 * 60 * 60;
+
+function getSessionKey() {
+  const secret = String(process.env.XTREAM_SESSION_SECRET || "");
+  if (Buffer.byteLength(secret, "utf8") < 32) {
+    throw new Error("XTREAM_SESSION_SECRET is not configured.");
+  }
+  return crypto.createHash("sha256").update(secret, "utf8").digest();
+}
+
+function encryptPayload(payload, ttlSeconds = SESSION_TTL_SECONDS) {
+  const key = getSessionKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const body = Buffer.concat([
+    cipher.update(JSON.stringify({ ...payload, expiresAt: Date.now() + ttlSeconds * 1000 }), "utf8"),
+    cipher.final(),
+  ]);
+  return Buffer.concat([iv, cipher.getAuthTag(), body]).toString("base64url");
+}
+
+function decryptPayload(token) {
+  try {
+    if (typeof token !== "string" || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
+    const bytes = Buffer.from(token, "base64url");
+    if (bytes.length < 30) return null;
+    const key = getSessionKey();
+    const iv = bytes.subarray(0, 12);
+    const tag = bytes.subarray(12, 28);
+    const body = bytes.subarray(28);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    const decoded = Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8");
+    const payload = JSON.parse(decoded);
+    if (!payload || !Number.isFinite(payload.expiresAt) || payload.expiresAt <= Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function createSessionCookie(username, password) {
+  const token = encryptPayload({ type: "session", username, password });
+  return `${SESSION_COOKIE}=${token}; Path=/api/xtream; Max-Age=${SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function expireSessionCookie() {
+  return `${SESSION_COOKIE}=; Path=/api/xtream; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function readCookie(req, name) {
+  const cookieHeader = String(req.headers.cookie || "");
+  for (const part of cookieHeader.split(";")) {
+    const index = part.indexOf("=");
+    if (index < 0) continue;
+    if (part.slice(0, index).trim() === name) return part.slice(index + 1).trim();
+  }
+  return "";
+}
+
+function readWebSession(req) {
+  const session = decryptPayload(readCookie(req, SESSION_COOKIE));
+  if (session?.type !== "session" || !session.username || !session.password) return null;
+  return { username: String(session.username), password: String(session.password) };
+}
+
+function createTargetToken(target) {
+  return encryptPayload({ type: "stream-target", url: String(target) });
+}
+
+function readTargetToken(token) {
+  const payload = decryptPayload(String(token || ""));
+  if (payload?.type !== "stream-target" || typeof payload.url !== "string") return null;
+  try { return new URL(payload.url); } catch { return null; }
+}
 
 function getBase() {
   const value = String(process.env.XTREAM_BASE_URL || "").trim().replace(/\/+$/, "");
@@ -79,12 +156,10 @@ function makePlayerApiUrl(base, username, password, action, params = {}) {
   return url;
 }
 
-function streamProxyUrl(username, password, target) {
+function streamProxyUrl(target) {
   const proxy = new URL("/api/xtream", "https://proxy.invalid");
   proxy.searchParams.set("mode", "remote");
-  proxy.searchParams.set("username", username);
-  proxy.searchParams.set("password", password);
-  proxy.searchParams.set("url", target);
+  proxy.searchParams.set("target", createTargetToken(target));
   return proxy.pathname + proxy.search;
 }
 
@@ -169,7 +244,7 @@ module.exports = async function handler(req, res) {
         if (!trimmed || trimmed.startsWith("#")) {
           return line.replace(/URI="([^"]+)"/g, (_all, uri) => {
             const absolute = new URL(uri, target).href;
-            return `URI="${streamProxyUrl(username, password, absolute)}"`;
+            return `URI="${streamProxyUrl(absolute)}"`;
           });
         }
         const absolute = new URL(trimmed, target).href;
