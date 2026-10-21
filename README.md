@@ -4,17 +4,26 @@ Cross-platform IPTV player for Android mobile, Android TV, and PC browser. It us
 
 ## Login experience
 
-The user enters only their IPTV username and password. No server URL field is shown. The app operator configures the provider base address once through deployment configuration.
+Users enter only their IPTV username and password. There is no provider URL field in the app. Android mobile and TV fetch the operator-configured provider address from the AGYASHtv API at runtime; customer credentials are not embedded in the APK.
 
-## Configure the provider (required)
+## One-time provider setup
 
-1. Set GitHub repository secret **Settings → Secrets and variables → Actions → New repository secret**:
-   - Name: `XTREAM_BASE_URL`
-   - Value: base address of your authorized provider, e.g. `https://provider.example:8080` (format example only; do not include `player_api.php`, credentials, or a playlist path).
-2. In Vercel, set project Environment Variable `XTREAM_BASE_URL` to the same provider base address for Production and Preview, then redeploy.
-3. Run GitHub Actions → **Build AGYASHtv Android APK and PC web app**. Builds are intentionally blocked until the hidden native provider endpoint is configured, to avoid publishing an APK that cannot connect.
+1. Open your Vercel project for AGYASHtv and go to **Settings → Environment Variables**.
+2. Add `XTREAM_BASE_URL` with the base address supplied by your authorized IPTV provider. Example format only: `https://provider.example:8080`. Do not include `player_api.php`, customer credentials, or a playlist path.
+3. Make the variable available to Production (and Preview if needed), then redeploy Vercel.
+4. Confirm the Vercel domain used by native apps is `https://agyas-htv.vercel.app`. If your production domain is different, set the GitHub Actions repository variable `AGYASHTV_API_ORIGIN` to that domain under **Settings → Secrets and variables → Actions → Variables**.
+5. Run GitHub Actions → **Build AGYASHtv Android APK and PC web app**.
 
-Do not put a real provider URL or credentials in source code. The web API proxy reads `XTREAM_BASE_URL` server-side. The Android APK requires it at build time as `EXPO_PUBLIC_XTREAM_BASE_URL`; because native clients must make provider requests, a technical user could inspect this endpoint in the APK. Never embed an IPTV customer's username or password into a build.
+The Vercel config endpoint returns the provider base address to native clients at runtime. The base address is not a password and can be inspected by a technically capable user; this architecture avoids duplicating the configuration in GitHub secrets and APK builds. Do not embed an IPTV customer's username/password in source code, environment variables, or releases.
+
+## Builds
+
+A successful release workflow creates:
+- `AGYASHtv-Mobile.apk` — release APK for Android mobile.
+- `AGYASHtv-AndroidTV.apk` — TV-targeted release APK with TV launcher support.
+- `AGYASHtv-PC-Web.zip` — exported web app.
+
+A separate GitHub Actions smoke-test workflow compiles both Android variants using a nonfunctional test endpoint. Those test artifacts are not customer releases.
 
 ## Build locally
 
@@ -24,18 +33,20 @@ npm run start
 npm run build:web
 ```
 
-For an Android release APK, configure `EXPO_PUBLIC_XTREAM_BASE_URL` in your local environment, then run:
+For native builds, set `EXPO_PUBLIC_API_ORIGIN` in your local environment to the deployed AGYASHtv API domain, then run:
 
 ```bash
-npx expo prebuild --platform android --no-install
+npx expo prebuild --platform android --no-install --clean
 cd android
 ./gradlew assembleRelease
 ```
 
-The Android TV config plugin adds the Leanback launcher category and marks touchscreen hardware optional. TV compatibility must still be checked on real hardware or an emulator. PC browser playback depends on provider stream formats and the browser's supported codecs.
+The project uses the React Native TV runtime matched to Expo SDK 57 / React Native 0.86 and the Expo TV config plugin. The CI builds separate mobile and TV variants. Verify both on real hardware or an Android emulator before distributing broadly.
 
-## Notes
+## Playback and deployment notes
 
+- The PC web app uses `api/xtream.js` to proxy provider API calls and browser playback, which avoids browser CORS restrictions for many providers.
+- Vercel serverless streaming has a maximum function duration. Long-running live channels or films may stop at that limit; for production playback, use a long-running media proxy/streaming backend or a provider/browser-compatible direct stream strategy.
+- Some providers restrict browser access, use cross-host HLS segments, or deliver codecs browsers do not support.
 - Use only content and provider accounts you are authorized to access.
-- Some providers restrict browser access or use unsupported stream codecs.
-- User credentials are stored on-device only when “Remember me” is enabled (SecureStore on native, AsyncStorage on web).
+- Credentials are saved on-device only when “Remember me” is enabled (SecureStore on native, AsyncStorage on web).
