@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check serverless API syntax
+        run: node --check api/config.js && node --check api/xtream.js
+
       - name: Type-check application
         run: npm run typecheck
 
