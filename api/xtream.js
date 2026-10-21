@@ -178,10 +178,14 @@ async function pipeUpstream(req, res, upstream, contentType) {
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   try {
-    const base = getBase();
-
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+      if (body.logout) {
+        res.setHeader("Set-Cookie", expireSessionCookie());
+        return res.status(200).json({ ok: true });
+      }
+
+      const base = getBase();
       const username = String(body.username || "").trim();
       const password = String(body.password || "");
       const action = body.action ? String(body.action) : "";
@@ -191,10 +195,23 @@ module.exports = async function handler(req, res) {
       if (action === "get_series_info" && !/^\d+$/.test(String(params.series_id || ""))) {
         return res.status(400).json({ error: "Invalid series ID." });
       }
+
       const url = makePlayerApiUrl(base, username, password, action, params);
       const { response: upstream } = await fetchAllowedTarget(url, { Accept: "application/json" }, base);
       if (!upstream.ok) return res.status(502).json({ error: "The IPTV provider could not complete the request." });
       const data = await upstream.json();
+
+      // Establish a short-lived encrypted HttpOnly session only after a valid browser login.
+      if (!action && Number(data?.user_info?.auth) === 1) {
+        try {
+          res.setHeader("Set-Cookie", createSessionCookie(username, password));
+        } catch (error) {
+          if (error instanceof Error && error.message === "XTREAM_SESSION_SECRET is not configured.") {
+            return res.status(503).json({ error: "Web sessions are not configured. Add XTREAM_SESSION_SECRET in Vercel." });
+          }
+          throw error;
+        }
+      }
       return res.status(200).json(data);
     }
 
@@ -203,11 +220,12 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed." });
     }
 
+    const base = getBase();
+    const session = readWebSession(req);
+    if (!session) return res.status(401).json({ error: "Your web session expired. Please sign in again." });
+    const { username, password } = session;
     const q = req.query || {};
     const mode = String(q.mode || "");
-    const username = String(q.username || "");
-    const password = String(q.password || "");
-    if (!username || !password) return res.status(400).json({ error: "Missing playback credentials." });
 
     let target;
     if (mode === "stream") {
@@ -221,7 +239,8 @@ module.exports = async function handler(req, res) {
       const basePath = base.pathname.replace(/\/+$/, "");
       target = new URL(`${basePath}/${pathKind}/${encode(username)}/${encode(password)}/${encode(id)}.${ext}`, base.origin);
     } else if (mode === "remote") {
-      target = new URL(String(q.url || ""));
+      target = readTargetToken(q.target);
+      if (!target) return res.status(400).json({ error: "The stream link is invalid or expired. Please reopen the stream." });
       if (!isAllowedTarget(target, base)) {
         return res.status(403).json({ error: "Blocked stream target. Configure an allowed provider/CDN host if required." });
       }
@@ -248,7 +267,7 @@ module.exports = async function handler(req, res) {
           });
         }
         const absolute = new URL(trimmed, target).href;
-        return streamProxyUrl(username, password, absolute);
+        return streamProxyUrl(absolute);
       };
       playlist = playlist.split(/\r?\n/).map(rewrite).join("\n");
       res.statusCode = upstream.status;
@@ -260,6 +279,12 @@ module.exports = async function handler(req, res) {
     return await pipeUpstream(req, res, upstream);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected provider error.";
-    return res.status(500).json({ error: message === "AGYASHtv provider configuration is missing." ? message : "Unable to contact your IPTV provider. Check its configuration and try again." });
+    if (message === "AGYASHtv provider configuration is missing.") {
+      return res.status(503).json({ error: "AGYASHtv provider is not configured yet. Please contact support." });
+    }
+    if (message === "XTREAM_SESSION_SECRET is not configured.") {
+      return res.status(503).json({ error: "Web sessions are not configured. Add XTREAM_SESSION_SECRET in Vercel." });
+    }
+    return res.status(500).json({ error: "Unable to contact your IPTV provider. Check its configuration and try again." });
   }
 };
