@@ -8,9 +8,9 @@ permissions:
 
 jobs:
   build:
-    name: Build Android release APK and web app
+    name: Build Mobile APK, Android TV APK, and PC web app
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,20 +43,34 @@ jobs:
           EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
         run: |
           if [ -z "$EXPO_PUBLIC_XTREAM_BASE_URL" ]; then
-            echo "::error::Set the private GitHub Actions secret XTREAM_BASE_URL to the authorized provider base address before running this workflow."
+            echo "::error::Set the private GitHub Actions secret XTREAM_BASE_URL to your authorized IPTV provider base address before running this workflow."
             exit 1
           fi
 
-      - name: Generate Android project
-        run: npx expo prebuild --platform android --no-install
+      - name: Generate mobile Android project
+        run: npx expo prebuild --platform android --no-install --clean
 
-      - name: Build installable release APK (bundles JavaScript)
+      - name: Build mobile release APK with bundled JavaScript
         env:
           EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
         run: cd android && ./gradlew assembleRelease
 
-      - name: Stage Android APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk AGYASHtv.apk
+      - name: Stage mobile APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk AGYASHtv-Mobile.apk
+
+      - name: Generate Android TV project
+        env:
+          EXPO_TV: "1"
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Build Android TV release APK with bundled JavaScript
+        env:
+          EXPO_TV: "1"
+          EXPO_PUBLIC_XTREAM_BASE_URL: ${{ secrets.XTREAM_BASE_URL }}
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Stage Android TV APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk AGYASHtv-AndroidTV.apk
 
       - name: Export PC web build
         run: npm run build:web
@@ -64,11 +78,19 @@ jobs:
       - name: Package PC web build
         run: cd dist && zip -qr ../AGYASHtv-PC-Web.zip .
 
-      - name: Upload APK
+      - name: Upload mobile APK
         uses: actions/upload-artifact@v4
         with:
-          name: AGYASHtv-Android-APK
-          path: AGYASHtv.apk
+          name: AGYASHtv-Mobile-APK
+          path: AGYASHtv-Mobile.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Android TV APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGYASHtv-AndroidTV-APK
+          path: AGYASHtv-AndroidTV.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -86,14 +108,16 @@ jobs:
           tag_name: latest
           name: AGYASHtv Latest Build
           body: |
-            AGYASHtv beta build for Android mobile, compatible Android TV devices, and PC web.
-            Sign in with an authorized IPTV username and password. The provider server is configured by the app operator and is not a login field.
-            - AGYASHtv.apk: Android release APK with JavaScript bundled
-            - AGYASHtv-PC-Web.zip: browser version for local/self hosting
+            AGYASHtv beta builds for Android mobile, Android TV, and PC web.
+            Sign in with an authorized IPTV subscription. The provider address is configured by the app operator and is not a login field.
+            - AGYASHtv-Mobile.apk: Android mobile release APK with JavaScript bundled
+            - AGYASHtv-AndroidTV.apk: Android TV release APK with Leanback launcher support
+            - AGYASHtv-PC-Web.zip: browser version for HTTPS hosting
           prerelease: true
           overwrite_files: true
           fail_on_unmatched_files: true
           files: |
-            AGYASHtv.apk
+            AGYASHtv-Mobile.apk
+            AGYASHtv-AndroidTV.apk
             AGYASHtv-PC-Web.zip
           token: ${{ secrets.GITHUB_TOKEN }}
