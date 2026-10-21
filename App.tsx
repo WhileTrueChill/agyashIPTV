@@ -81,6 +81,7 @@ async function apiRequest<T>(username: string, password: string, action?: string
   if (Platform.OS === "web") {
     const response = await fetch("/api/xtream", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, action, params }),
     });
