@@ -20,6 +20,49 @@ function getBase() {
   return base;
 }
 
+function allowedStreamHosts(base) {
+  const hosts = new Set([base.hostname.toLowerCase()]);
+  for (const entry of String(process.env.XTREAM_ALLOWED_STREAM_HOSTS || "").split(",")) {
+    const candidate = entry.trim();
+    if (!candidate) continue;
+    try {
+      const host = candidate.includes("://") ? new URL(candidate).hostname : candidate;
+      if (/^[a-zA-Z0-9.-]+$/.test(host)) hosts.add(host.toLowerCase());
+    } catch {
+      // Ignore malformed optional host entries.
+    }
+  }
+  return hosts;
+}
+
+function isAllowedTarget(target, base, hosts = allowedStreamHosts(base)) {
+  if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) return false;
+  if (!hosts.has(target.hostname.toLowerCase())) return false;
+  if (target.origin === base.origin) return true;
+  // Optional CDN hosts are only allowed on their standard HTTP(S) ports.
+  return (target.protocol === "https:" && (!target.port || target.port === "443")) ||
+    (target.protocol === "http:" && (!target.port || target.port === "80"));
+}
+
+async function fetchAllowedTarget(target, headers, base) {
+  const hosts = allowedStreamHosts(base);
+  let current = new URL(target);
+  for (let redirectCount = 0; redirectCount <= 5; redirectCount++) {
+    if (!isAllowedTarget(current, base, hosts)) {
+      throw new Error("Provider stream host is not allow-listed.");
+    }
+    const response = await fetch(current, { headers, redirect: "manual" });
+    if (![301, 302, 303, 307, 308].includes(response.status)) {
+      return { response, url: current };
+    }
+    const location = response.headers.get("location");
+    if (!location) return { response, url: current };
+    await response.body?.cancel().catch(() => {});
+    current = new URL(location, current);
+  }
+  throw new Error("Provider redirect limit exceeded.");
+}
+
 function encode(value) {
   return encodeURIComponent(String(value || ""));
 }
@@ -74,7 +117,7 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: "Invalid series ID." });
       }
       const url = makePlayerApiUrl(base, username, password, action, params);
-      const upstream = await fetch(url, { headers: { Accept: "application/json" } });
+      const { response: upstream } = await fetchAllowedTarget(url, { Accept: "application/json" }, base);
       if (!upstream.ok) return res.status(502).json({ error: "The IPTV provider could not complete the request." });
       const data = await upstream.json();
       return res.status(200).json(data);
@@ -104,8 +147,8 @@ module.exports = async function handler(req, res) {
       target = new URL(`${basePath}/${pathKind}/${encode(username)}/${encode(password)}/${encode(id)}.${ext}`, base.origin);
     } else if (mode === "remote") {
       target = new URL(String(q.url || ""));
-      if (target.hostname !== base.hostname || !["http:", "https:"].includes(target.protocol)) {
-        return res.status(403).json({ error: "Blocked stream target." });
+      if (!isAllowedTarget(target, base)) {
+        return res.status(403).json({ error: "Blocked stream target. Configure an allowed provider/CDN host if required." });
       }
     } else {
       return res.status(400).json({ error: "Invalid stream mode." });
@@ -113,7 +156,9 @@ module.exports = async function handler(req, res) {
 
     const headers = { Accept: "*/*" };
     if (req.headers.range) headers.Range = req.headers.range;
-    const upstream = await fetch(target, { headers, redirect: "follow" });
+    const fetched = await fetchAllowedTarget(target, headers, base);
+    const upstream = fetched.response;
+    target = fetched.url;
     const type = upstream.headers.get("content-type") || "";
     const pathname = target.pathname.toLowerCase();
 
