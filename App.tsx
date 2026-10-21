@@ -152,7 +152,7 @@ function MediaCard({ item, kind, onPress, saved, onToggleSaved }: {
   const image = item.stream_icon || item.cover;
   return (
     <View style={styles.card}>
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.poster, pressed && styles.pressed]} accessibilityRole="button">
+      <Pressable onPress={onPress} style={({ pressed, focused }) => [styles.poster, pressed && styles.pressed, focused && styles.focused]} accessibilityRole="button">
         {image ? <View style={styles.posterImageArea}><Image source={{ uri: image }} style={styles.posterImage} resizeMode="cover" onError={() => {}} /></View> : <View style={styles.posterFallbackArea}><Text style={styles.posterFallback}>{initial}</Text></View>}
         <View style={styles.posterOverlay}><Text style={styles.playGlyph}>▶</Text></View>
         <View style={styles.kindPill}><Text style={styles.kindText}>{kind === "live" ? "LIVE" : kind === "movie" ? "MOVIE" : "SERIES"}</Text></View>
@@ -167,6 +167,7 @@ function MediaCard({ item, kind, onPress, saved, onToggleSaved }: {
 
 export default function App() {
   const { width } = useWindowDimensions();
+  const compactLayout = width < 720;
   const columns = width >= 1400 ? 6 : width >= 1050 ? 5 : width >= 760 ? 4 : width >= 520 ? 3 : 2;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -329,7 +330,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.appShell}>
       <StatusBar barStyle="light-content" backgroundColor="#08090D" />
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, compactLayout && styles.mobileTopBar]}>
         <Logo />
         <View style={styles.topBarActions}>
           <View style={styles.accountBadge}><View style={styles.onlineDot}/><Text style={styles.accountBadgeText}>CONNECTED</Text></View>
@@ -337,14 +338,34 @@ export default function App() {
         </View>
       </View>
       {accountOpen && <View style={styles.accountPopover}><Text style={styles.popoverUser}>{userInfo?.username || username}</Text><Text style={styles.popoverMuted}>Status: {userInfo?.status || "Active"}</Text><Pressable onPress={logout} style={styles.logoutButton}><Text style={styles.logoutText}>Sign out</Text></Pressable></View>}
-      <View style={styles.mainLayout}>
-        <View style={styles.sidebar}>
-          <Text style={styles.navCaption}>DISCOVER</Text>
-          {NAV_ITEMS.map((item) => <Pressable key={item.key} onPress={() => { setTab(item.key); setCategory("all"); setSearch(""); setEpisodePicker(null); }} style={[styles.navButton, tab === item.key && styles.navButtonActive]}><Text style={[styles.navIcon, tab === item.key && styles.navTextActive]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.navTextActive]}>{item.label}</Text></Pressable>)}
-          <View style={styles.sidebarFooter}><View style={styles.sidebarDivider}/><Text style={styles.sidebarNote}>Made for your screen.</Text><Text style={styles.sidebarBrand}>AGYASHtv</Text></View>
+      {compactLayout && (
+        <View style={styles.mobileNavWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mobileNav}>
+            {NAV_ITEMS.map((item) => (
+              <Pressable
+                key={item.key}
+                onPress={() => { setTab(item.key); setCategory("all"); setSearch(""); setEpisodePicker(null); }}
+                style={({ focused }) => [styles.mobileNavButton, tab === item.key && styles.navButtonActive, focused && styles.focused]}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+              >
+                <Text style={[styles.mobileNavIcon, tab === item.key && styles.navTextActive]}>{item.icon}</Text>
+                <Text style={[styles.mobileNavLabel, tab === item.key && styles.navTextActive]}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
+      )}
+      <View style={styles.mainLayout}>
+        {!compactLayout && (
+          <View style={styles.sidebar}>
+            <Text style={styles.navCaption}>DISCOVER</Text>
+            {NAV_ITEMS.map((item) => <Pressable key={item.key} onPress={() => { setTab(item.key); setCategory("all"); setSearch(""); setEpisodePicker(null); }} style={({ focused }) => [styles.navButton, tab === item.key && styles.navButtonActive, focused && styles.focused]}><Text style={[styles.navIcon, tab === item.key && styles.navTextActive]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.navTextActive]}>{item.label}</Text></Pressable>)}
+            <View style={styles.sidebarFooter}><View style={styles.sidebarDivider}/><Text style={styles.sidebarNote}>Made for your screen.</Text><Text style={styles.sidebarBrand}>AGYASHtv</Text></View>
+          </View>
+        )}
         <View style={styles.contentPane}>
-          <ScrollView contentContainerStyle={styles.contentScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.contentScroll, compactLayout && styles.mobileContentScroll]} showsVerticalScrollIndicator={false}>
             {tab !== "mylist" && <View style={styles.heroBanner}><View style={styles.heroCircle}/><Text style={styles.heroEyebrow}>STREAM YOUR WAY</Text><Text style={styles.heroTitle}>A world of entertainment.</Text><Text style={styles.heroDescription}>Live channels, films and series — all in one place.</Text><View style={styles.heroChipRow}><Text style={styles.heroChip}>✦ LIVE</Text><Text style={styles.heroChip}>FILMS</Text><Text style={styles.heroChip}>SERIES</Text></View></View>}
             <View style={styles.sectionHeading}><View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSub}>{loadingLibrary ? "Loading your library…" : `${filtered.length.toLocaleString()} titles available`}</Text></View><View style={styles.searchBox}><Text style={styles.searchIcon}>⌕</Text><TextInput value={search} onChangeText={setSearch} placeholder="Search titles…" placeholderTextColor="#777988" style={styles.searchInput}/>{!!search && <Pressable onPress={() => setSearch("")}><Text style={styles.clearSearch}>×</Text></Pressable>}</View></View>
             {tab !== "mylist" && activeCategories.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}><Pressable onPress={() => setCategory("all")} style={[styles.categoryChip, category === "all" && styles.categoryChipActive]}><Text style={[styles.categoryText, category === "all" && styles.categoryTextActive]}>All</Text></Pressable>{activeCategories.map((cat) => <Pressable key={String(cat.category_id)} onPress={() => setCategory(String(cat.category_id))} style={[styles.categoryChip, category === String(cat.category_id) && styles.categoryChipActive]}><Text style={[styles.categoryText, category === String(cat.category_id) && styles.categoryTextActive]}>{cat.category_name}</Text></Pressable>)}</ScrollView>}
@@ -390,9 +411,17 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#130E29", fontSize: 14, fontWeight: "900", letterSpacing: 0.3 },
   disabledButton: { opacity: 0.7 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
+  focused: { borderColor: "#B9AAFF", borderWidth: 2, opacity: 1 },
   termsText: { color: "#777889", textAlign: "center", fontSize: 10, lineHeight: 16, marginTop: 17 },
   loginFooter: { color: "#777889", fontWeight: "700", fontSize: 10, letterSpacing: 2, marginTop: 25 },
   topBar: { height: 70, paddingHorizontal: 25, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#23232D" },
+  mobileTopBar: { height: 60, paddingHorizontal: 14 },
+  mobileNavWrap: { borderBottomWidth: 1, borderBottomColor: "#23232D", backgroundColor: "#0B0C12", maxHeight: 60 },
+  mobileNav: { paddingHorizontal: 12, paddingVertical: 9, gap: 7, alignItems: "center" },
+  mobileNavButton: { minHeight: 39, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 10, backgroundColor: "#14151D" },
+  mobileNavIcon: { color: "#89899A", fontSize: 16 },
+  mobileNavLabel: { color: "#A7A7B8", fontSize: 11, fontWeight: "700" },
+  mobileContentScroll: { paddingHorizontal: 14, paddingTop: 16 },
   topBarActions: { flexDirection: "row", alignItems: "center", gap: 16 },
   accountBadge: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#151A1B", borderColor: "#293638", borderWidth: 1, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 7 },
   onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#70E2A0" },
