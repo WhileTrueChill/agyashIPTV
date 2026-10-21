@@ -1,15 +1,6 @@
 name: Smoke-test Android mobile and TV builds
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "App.tsx"
-      - "app.json"
-      - "package.json"
-      - "tsconfig.json"
-      - "plugins/**"
-      - ".github/workflows/android-smoke-test.yml"
   workflow_dispatch:
 
 permissions:
