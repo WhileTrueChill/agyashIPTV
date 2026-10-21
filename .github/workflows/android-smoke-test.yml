@@ -30,7 +30,7 @@ jobs:
             tv: "1"
     env:
       EXPO_TV: ${{ matrix.tv }}
-      EXPO_PUBLIC_XTREAM_BASE_URL: "https://provider.example.invalid"
+      EXPO_PUBLIC_API_ORIGIN: 'https://agyas-htv.vercel.app'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
