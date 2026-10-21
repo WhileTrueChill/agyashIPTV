@@ -25,7 +25,8 @@ function encode(value) {
 }
 
 function makePlayerApiUrl(base, username, password, action, params = {}) {
-  const url = new URL("/player_api.php", base);
+  const basePath = base.pathname.replace(/\/+$/, "");
+  const url = new URL(`${basePath}/player_api.php`, base.origin);
   url.searchParams.set("username", String(username));
   url.searchParams.set("password", String(password));
   if (action) url.searchParams.set("action", action);
@@ -99,7 +100,8 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: "Invalid stream request." });
       }
       const pathKind = kind === "movie" ? "movie" : kind === "series" ? "series" : "live";
-      target = new URL(`/${pathKind}/${encode(username)}/${encode(password)}/${encode(id)}.${ext}`, base);
+      const basePath = base.pathname.replace(/\/+$/, "");
+      target = new URL(`${basePath}/${pathKind}/${encode(username)}/${encode(password)}/${encode(id)}.${ext}`, base.origin);
     } else if (mode === "remote") {
       target = new URL(String(q.url || ""));
       if (target.hostname !== base.hostname || !["http:", "https:"].includes(target.protocol)) {
