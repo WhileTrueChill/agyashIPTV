@@ -41,3 +41,14 @@ jobs:
 
       - name: Export web app
         run: npm run build:web
+
+      - name: Package PC web build
+        run: cd dist && zip -qr ../AGYASHtv-PC-Web.zip .
+
+      - name: Upload PC web preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGYASHtv-PC-Web-Preview
+          path: AGYASHtv-PC-Web.zip
+          if-no-files-found: error
+          retention-days: 14
