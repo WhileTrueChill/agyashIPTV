@@ -25,7 +25,8 @@ The Vercel config endpoint returns the provider base address to native clients a
 A successful release workflow creates:
 - `AGYASHtv-Mobile.apk` — release APK for Android mobile.
 - `AGYASHtv-AndroidTV.apk` — TV-targeted release APK with TV launcher support.
-- `AGYASHtv-PC-Web.zip` — exported web app.
+- `AGYASHtv-Setup.exe` — Windows x64 desktop installer. It opens the deployed AGYASHtv web app in a sandboxed Electron window and therefore requires an internet connection and a working Vercel deployment.
+- `AGYASHtv-PC-Web.zip` — exported web app for HTTPS hosting.
 
 A separate GitHub Actions smoke-test workflow compiles both Android variants using a nonfunctional test endpoint. Those test artifacts are not customer releases.
 
@@ -45,7 +46,7 @@ cd android
 ./gradlew assembleRelease
 ```
 
-The project uses the React Native TV runtime matched to Expo SDK 57 / React Native 0.86 and the Expo TV config plugin. The CI builds separate mobile and TV variants. Verify both on real hardware or an Android emulator before distributing broadly.
+The project uses the React Native TV runtime matched to Expo SDK 57 / React Native 0.86 and the Expo TV config plugin. The CI builds separate mobile and TV variants and a Windows Electron shell. Verify mobile and TV playback on real hardware or an emulator before distributing broadly.
 
 ## Playback and deployment notes
 
