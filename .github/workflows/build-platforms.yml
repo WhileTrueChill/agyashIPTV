@@ -1,6 +1,17 @@
 name: Build AGYASHtv Android APK and PC web app
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "App.tsx"
+      - "app.json"
+      - "package.json"
+      - "tsconfig.json"
+      - "api/**"
+      - "plugins/**"
+      - "vercel.json"
+      - ".github/workflows/build-platforms.yml"
   workflow_dispatch:
 
 permissions:
