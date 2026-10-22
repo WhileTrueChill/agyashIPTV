@@ -8,7 +8,9 @@ Users enter only their IPTV username and password. There is no provider URL fiel
 
 ## One-time provider setup
 
-1. Open your Vercel project for AGYASHtv and go to **Settings → Environment Variables**.
+Before deployment, open Vercel Project **Settings → Build and Deployment** and set **Root Directory** to the repository root (leave it blank/default), not `download-site`. Use Framework Preset **Other**; the checked-in `vercel.json` runs the Expo web export and serves `dist`.
+
+Then open **Settings → Environment Variables**.
 2. Add `XTREAM_BASE_URL` with the base address supplied by your authorized IPTV provider. Example format only: `https://provider.example:8080`. Do not include `player_api.php`, customer credentials, or a playlist path.
 3. Add `XTREAM_SESSION_SECRET` with a random secret of at least 32 bytes. You can generate one in a local terminal with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Keep it in Vercel only; never commit it.
 4. Make both variables available to Production (and Preview if needed), then redeploy Vercel.
