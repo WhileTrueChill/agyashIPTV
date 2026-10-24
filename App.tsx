@@ -31,14 +31,41 @@ const API_ORIGIN = (process.env.EXPO_PUBLIC_API_ORIGIN || "https://agyas-htv.ver
 let resolvedProviderBase = "";
 let providerBasePromise: Promise<string> | null = null;
 
+function readableApiError(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["message", "error_description", "detail", "title"]) {
+      const item = record[key];
+      if (typeof item === "string" && item.trim()) return item.trim();
+    }
+    if (typeof record.error === "string" && record.error.trim()) return record.error.trim();
+    if (record.error && typeof record.error === "object") {
+      return readableApiError(record.error, fallback);
+    }
+  }
+  return fallback;
+}
+
 async function getProviderBase(): Promise<string> {
   if (resolvedProviderBase) return resolvedProviderBase;
   if (!providerBasePromise) {
     providerBasePromise = (async () => {
-      const response = await fetch(`${API_ORIGIN}/api/config`, { headers: { Accept: "application/json" } });
+      let response: Response;
+      try {
+        response = await fetch(`${API_ORIGIN}/api/config`, { headers: { Accept: "application/json" } });
+      } catch {
+        throw new Error("Cannot reach the AGYASHtv server. Check the internet connection and confirm that the Vercel deployment is active.");
+      }
       const json = await response.json().catch(() => null);
       if (!response.ok || typeof json?.providerBase !== "string") {
-        throw new Error(json?.error || "AGYASHtv server is not configured. Please contact support.");
+        if (response.status === 404) {
+          throw new Error("AGYASHtv API endpoint was not found (404). In Vercel, set Root Directory to the repository root—not download-site—and redeploy.");
+        }
+        const fallback = response.status === 503
+          ? "AGYASHtv provider is not configured. Set XTREAM_BASE_URL in Vercel Environment Variables and redeploy."
+          : `AGYASHtv server returned an invalid response (HTTP ${response.status}). Check the Vercel API deployment and environment variables.`;
+        throw new Error(readableApiError(json?.error, fallback));
       }
       let parsed: URL;
       try { parsed = new URL(json.providerBase); }
@@ -86,7 +113,12 @@ async function apiRequest<T>(username: string, password: string, action?: string
       body: JSON.stringify({ username, password, action, params }),
     });
     const json = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(json?.error || "Unable to connect to your IPTV provider.");
+    if (!response.ok) {
+      const fallback = response.status === 401
+        ? "Your web login session expired. Please sign in again."
+        : `AGYASHtv API request failed (HTTP ${response.status}). Check the Vercel API configuration.`;
+      throw new Error(readableApiError(json?.error, fallback));
+    }
     return json as T;
   }
 
@@ -270,7 +302,10 @@ export default function App() {
       await loadLibrary(user, pass);
     } catch (e) {
       setSignedIn(false);
-      setError(e instanceof Error ? e.message : "Login failed. Try again.");
+      const message = e instanceof Error ? e.message : readableApiError(e, "Login failed. Try again.");
+      setError(message === "[object Object]"
+        ? "The server returned an unreadable error. Confirm Vercel Root Directory is the repository root and XTREAM_BASE_URL is configured, then redeploy."
+        : message);
     } finally {
       setBusy(false);
     }
