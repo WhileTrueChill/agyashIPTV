@@ -20,6 +20,18 @@ Then open **Settings → Environment Variables**.
 
 The Vercel config endpoint returns the provider base address to native clients at runtime. The base address is not a password and can be inspected by a technically capable user; this architecture avoids duplicating the configuration in GitHub secrets and APK builds. Browser playback uses an encrypted, short-lived, HttpOnly session cookie and encrypted HLS target tokens so raw credentials are not placed in media URLs. Do not embed an IPTV customer's username/password or the session secret in source code, environment variables used at build time, or releases.
 
+## Fixing a 404 on `/api/config`
+
+If the Android app shows “API endpoint was not found (404)”, the Vercel deployment is not serving the repository-root API files.
+
+1. In Vercel, open the AGYASHtv project → **Settings → Build and Deployment**.
+2. Set **Root Directory** to the repository root (blank/default), not `download-site`. Set **Framework Preset** to **Other**.
+3. Confirm the project uses the checked-in root `vercel.json`: build command `npm run build:web`, output directory `dist`.
+4. In **Settings → Environment Variables**, configure `XTREAM_BASE_URL` (your authorized provider's base address) and `XTREAM_SESSION_SECRET` (random secret, at least 32 bytes) for Production.
+5. Redeploy the project. Then open `https://agyas-htv.vercel.app/api/config`; with a valid `XTREAM_BASE_URL`, it should return JSON containing `providerBase`. Never share real credentials or session secrets.
+
+If the endpoint returns HTTP 503 after redeploying, the provider environment variable is missing or unavailable in that deployment environment. If it still returns 404, confirm the correct Vercel project/domain and root directory.
+
 ## Builds
 
 A successful release workflow creates:
