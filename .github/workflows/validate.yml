@@ -10,6 +10,7 @@ on:
       - "tsconfig.json"
       - "plugins/**"
       - "api/**"
+      - "download-site/**"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 
@@ -34,7 +35,7 @@ jobs:
         run: npm install
 
       - name: Check serverless API syntax
-        run: node --check api/config.js && node --check api/xtream.js
+        run: node --check api/config.js && node --check api/xtream.js && node --check download-site/api/config.js && node --check download-site/api/xtream.js
 
       - name: Type-check application
         run: npm run typecheck
