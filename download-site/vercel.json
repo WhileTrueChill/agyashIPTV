@@ -1,4 +1,7 @@
 {
+  "installCommand": "echo \"No install required for static download site\"",
+  "buildCommand": "mkdir -p public && cp index.html public/index.html",
+  "outputDirectory": "public",
   "functions": {
     "api/config.js": {
       "maxDuration": 10
